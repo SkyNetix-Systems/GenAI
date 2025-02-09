@@ -1,12 +1,20 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
+<<<<<<< HEAD
   "style": "default",
+=======
+  "style": "new-york",
+>>>>>>> 0591152e7460dd07b3fb22375410a6ffc2df8b58
   "rsc": true,
   "tsx": true,
   "tailwind": {
     "config": "tailwind.config.ts",
     "css": "app/globals.css",
+<<<<<<< HEAD
     "baseColor": "neutral",
+=======
+    "baseColor": "zinc",
+>>>>>>> 0591152e7460dd07b3fb22375410a6ffc2df8b58
     "cssVariables": true,
     "prefix": ""
   },
