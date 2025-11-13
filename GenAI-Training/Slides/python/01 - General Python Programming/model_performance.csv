@@ -1,0 +1,3 @@
+Model Version,Accuracy,Response Time (ms),Tokens
+GPT-4,98.7,45,300
+GPT-4o,99.7,42,350
