@@ -1,38 +1,59 @@
-# Source:Below code is provided by Streamlit and AWS 
+# streamlit_chat.py
+import streamlit as st
+import chatbot_backend as demo   # your backend module
 
-#1 import streamlit and chatbot file
-import streamlit as st 
-import  chatbot_backend as demo  #**Import your Chatbot file as demo
+st.set_page_config(page_title="Chatbot Anisha", page_icon="🤖")
+st.title("Hi, This is Chatbot 😎")
 
-#2 Set Title for Chatbot - https://docs.streamlit.io/library/api-reference/text/st.title
-st.title("Hi, This is Chatbot Anisha :sunglasses:") # **Modify this based on the title you want in want
+# --- initialize LLM and history in session state ---
+if "llm" not in st.session_state:
+    # change profile/model_id if you need to
+    st.session_state.llm = demo.get_llm(profile="default", model_id="amazon.titan-text-lite-v1")
 
-#3 LangChain memory to the session cache - Session State - https://docs.streamlit.io/library/api-reference/session-state
-if 'memory' not in st.session_state: 
-    st.session_state.memory = demo.demo_memory() #** Modify the import and memory function() attributes initialize the memory
+if "history" not in st.session_state:
+    # SimpleHistory(max_turns=6) keeps recent turns
+    st.session_state.history = demo.SimpleHistory(max_turns=6)
 
-#4 Add the UI chat history to the session cache - Session State - https://docs.streamlit.io/library/api-reference/session-state
-if 'chat_history' not in st.session_state: #see if the chat history hasn't been created yet
-    st.session_state.chat_history = [] #initialize the chat history
+# optional system instruction that demo.demo_converse will try to apply
+if "system_prompt" not in st.session_state:
+    st.session_state.system_prompt = "You are a helpful assistant. Keep answers concise."
 
-#5 Re-render the chat history (Streamlit re-runs this script, so need this to preserve previous chat messages)
-for message in st.session_state.chat_history: 
-    with st.chat_message(message["role"]): 
-        st.markdown(message["text"]) 
+# --- render previous chat from history ---
+# history.messages is a list of {"role": "user"/"assistant", "text": "..."}
+for msg in st.session_state.history.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["text"])
 
-#6 Enter the details for chatbot input box 
-     
-input_text = st.chat_input("Chat with Rahul's Bedrock Udemy Course Bot here") # **display a chat input box
-if input_text: 
-    
-    with st.chat_message("user"): 
-        st.markdown(input_text) 
-    
-    st.session_state.chat_history.append({"role":"user", "text":input_text}) 
+# --- input box ---
+user_input = st.chat_input("Chat with Chatbot — ask anything...")
 
-    chat_response = demo.demo_conversation(input_text=input_text, memory=st.session_state.memory) #** replace with ConversationChain Method name - call the model through the supporting library
-    
-    with st.chat_message("assistant"): 
-        st.markdown(chat_response) 
-    
-    st.session_state.chat_history.append({"role":"assistant", "text":chat_response}) 
+if user_input:
+    # show user message immediately
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    # call backend: demo_converse(user_text, llm, history, system_prompt)
+    try:
+        assistant_reply = demo.demo_converse(
+            user_text=user_input,
+            llm=st.session_state.llm,
+            history=st.session_state.history,
+            system_prompt=st.session_state.system_prompt
+        )
+    except Exception as e:
+        assistant_reply = f"Error calling the model: {e}"
+
+    # show assistant message and it will also be saved into history inside demo_converse
+    with st.chat_message("assistant"):
+        st.markdown(assistant_reply)
+
+# --- optional controls ---
+col1, col2 = st.columns([1, 3])
+with col1:
+    if st.button("Clear chat"):
+        st.session_state.history = demo.SimpleHistory(max_turns=6)
+        # force rerun to clear UI
+        st.experimental_rerun()
+
+with col2:
+    st.caption("Model: " + getattr(st.session_state.llm, "model", "unknown"))

@@ -1,37 +1,102 @@
-#1 import the ConversationSummaryBufferMemory, ConversationChain, ChatBedrock or ChatBedrockConverse Langchain Modules
-from langchain.memory import ConversationSummaryBufferMemory
-from langchain.chains import ConversationChain
+# chatbot_backend_fixed_system_retry.py
+from typing import Any, List, Dict
 from langchain_aws import ChatBedrockConverse
-#2a Write a function for invoking model- client connection with Bedrock with profile, model_id & Inference params- model_kwargs
-def demo_chatbot():
-    demo_llm=ChatBedrockConverse(
-        credentials_profile_name='default',
-        model="amazon.nova-pro-v1:0",
-        temperature=0.1,
-        max_tokens=1000)
-    return demo_llm
-#3 Create a Function for ConversationBufferMemory (llm and max token limit)
-def demo_memory():
-    llm_data=demo_chatbot()
-    memory=ConversationSummaryBufferMemory(llm=llm_data,max_token_limit=2000)
-    return memory
-#4 Create a Function for Conversation Chain - Input text + Memory
 
-def demo_conversation(input_text,memory):
-    llm_chain_data=demo_chatbot()
-    llm_conversation = ConversationChain(
-    llm=llm_chain_data, 
-    memory=memory,
-    verbose=True
-)
-#5 Chat response using invoke (Prompt template)
-    chat_reply=llm_conversation.invoke(input_text)
-    return chat_reply['response']
-    
+def get_llm(profile: str = "default", model_id: str = "amazon.titan-text-lite-v1", temperature: float = 0.1, max_tokens: int = 500):
+    return ChatBedrockConverse(
+        credentials_profile_name=profile,
+        model=model_id,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
 
+def extract_assistant_text(resp: Any) -> str:
+    if resp is None:
+        return ""
+    if hasattr(resp, "content"):
+        return resp.content
+    if isinstance(resp, dict):
+        for key in ("messages", "output"):
+            try:
+                return resp[key][0]["content"][0]["text"]
+            except Exception:
+                pass
+        if "content" in resp:
+            return resp["content"]
+    if isinstance(resp, list) and len(resp) > 0 and isinstance(resp[0], dict):
+        try:
+            return resp[0]["content"][0]["text"]
+        except Exception:
+            pass
+    return str(resp)
 
-#Links :
-#https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html
-#https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-runtime_example_bedrock-runtime_Converse_AmazonTitanText_section.html
-#https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-deepseek.html
+class SimpleHistory:
+    def __init__(self, max_turns: int = 6):
+        self.max_turns = max_turns
+        self.messages: List[Dict[str, str]] = []
+    def add_user(self, text: str):
+        self.messages.append({"role": "user", "text": text}); self._trim()
+    def add_assistant(self, text: str):
+        self.messages.append({"role": "assistant", "text": text}); self._trim()
+    def _trim(self):
+        if len(self.messages) > self.max_turns * 2:
+            self.messages = self.messages[-(self.max_turns * 2):]
+    def to_bedrock_messages(self, system_prompt: str = None) -> List[Dict[str, object]]:
+        out = []
+        if system_prompt:
+            out.append({"role": "system", "content": [{"text": system_prompt}]})
+        for m in self.messages:
+            out.append({"role": m["role"], "content": [{"text": m["text"]}]})
+        return out
 
+def demo_converse(user_text: str, llm: ChatBedrockConverse, history: SimpleHistory, system_prompt: str = None) -> str:
+    history.add_user(user_text)
+    messages = history.to_bedrock_messages(system_prompt=system_prompt)
+
+    # Try to call once, if model rejects system messages, retry without system role.
+    try:
+        resp = llm.invoke(messages)
+    except Exception as e:
+        msg = str(e).lower()
+        if "system messages" in msg or "doesn't support system messages" in msg or "does not support system messages" in msg:
+            # Retry without system role
+            messages_no_system = [m for m in messages if m.get("role") != "system"]
+            try:
+                resp = llm.invoke(messages_no_system)
+            except Exception:
+                # As a last-ditch effort, merge the system prompt into the user text and retry
+                merged_user = (system_prompt + "\n\n" + user_text) if system_prompt else user_text
+                merged_messages = []
+                # use history but convert system->prepend to latest user message
+                for m in history.messages[:-1]:  # all prior turns except latest user
+                    merged_messages.append({"role": m["role"], "content": [{"text": m["text"]}]})
+                merged_messages.append({"role": "user", "content": [{"text": merged_user}]})
+                resp = llm.invoke(merged_messages)
+        else:
+            # unexpected error: re-raise so caller can see it
+            raise
+
+    assistant_text = extract_assistant_text(resp)
+    history.add_assistant(assistant_text)
+    return assistant_text
+
+# --------- quick demo ----------
+if __name__ == "__main__":
+    PROFILE = "default"
+    MODEL_ID = "amazon.titan-text-lite-v1"  # change to a model you have access to
+    llm = get_llm(profile=PROFILE, model_id=MODEL_ID)
+
+    history = SimpleHistory(max_turns=6)
+    # Try using a system prompt — script will auto-retry if the model rejects it.
+    system_prompt = "You are a helpful assistant; keep answers short."
+
+    questions = [
+        "What is Amazon Bedrock?",
+        "How would I integrate it into my web app?",
+    ]
+
+    for q in questions:
+        print("USER:", q)
+        reply = demo_converse(q, llm, history, system_prompt=system_prompt)
+        print("ASSISTANT:", reply)
+        print("-" * 60)
