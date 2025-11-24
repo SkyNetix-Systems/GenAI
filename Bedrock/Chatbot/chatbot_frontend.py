@@ -2,7 +2,7 @@
 import streamlit as st
 import chatbot_backend as demo   # your backend module
 
-st.set_page_config(page_title="Chatbot Anisha", page_icon="🤖")
+st.set_page_config(page_title="Chatbot", page_icon="🤖")
 st.title("Hi, This is Chatbot 😎")
 
 # --- initialize LLM and history in session state ---
