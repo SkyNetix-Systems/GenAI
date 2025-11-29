@@ -12,6 +12,14 @@ if __name__ == "__main__":
         for i in range(3)
     ]
 
+# list comprehension
+# result = []
+# for i in range(5):
+#    result.append(i * 2)
+
+# result = [i * 2 for i in range(5)]
+
+    
     # Start all process
     for p in chai_makers:
         p.start()

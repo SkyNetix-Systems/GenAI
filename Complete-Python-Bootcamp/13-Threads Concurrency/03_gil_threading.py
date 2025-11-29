@@ -4,7 +4,7 @@ import time
 def brew_chai():
     print(f"{threading.current_thread().name} started brewing...")
     count = 0
-    for _ in range(100_000_000):
+    for _ in range(100_000_000): # range(100_000_000) → gives you numbers from 0 to 99,999,999 i.e. 100 million
         count += 1
     print(f"{threading.current_thread().name} finished brewing...")
 
