@@ -48,3 +48,25 @@ pydantic
 tqdm
 rich
 requests
+
+# --- GenAI SDKs ---
+openai                        # OpenAI official client
+google-generativeai           # Google Gemini
+anthropic                     # Claude SDK
+mistralai                     # Mistral AI API
+cohere                        # Cohere LLM API
+groq                          # Groq Llama/Mixtral high-speed inference
+together                      # Together AI unified models
+
+# --- LLM Tokenization, Text Processing ---
+tiktoken                      # OpenAI tokenizer
+tokenizers                    # HuggingFace fast tokenizers (Rust)
+protobuf                      # Needed for many model APIs
+einops                        # Used in many HF model architectures
+
+# --- Vector DB + RAG enhancements ---
+pymupdf                       # For PDF parsing in RAG
+pdfminer.six                  # Backup PDF parser
+pypdf                         # Lightweight PDF support
+unstructured                  # Enterprise-grade document parsing
+beautifulsoup4                # HTML parsing for web RAG
