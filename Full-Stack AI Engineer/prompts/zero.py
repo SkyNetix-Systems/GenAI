@@ -37,7 +37,7 @@ response = client.chat.completions.create(
     model="gemini-2.5-flash",     # Gemini model
     messages=[
         { "role": "system", "content": SYSTEM_PROMPT },    # System instructions
-        { "role": "user", "content": "Hey, can you write Python code to translate the word 'hello' to Hindi?" }
+        { "role": "user", "content": "Hey, can you write Python code to for fibonacci numbers" }
     ]
 )
 

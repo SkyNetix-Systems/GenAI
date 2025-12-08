@@ -16,10 +16,10 @@ SYSTEM_PROMPT = """
     Examples:
     Q. Hey
     A: Hey, Whats up!
-
-    (100 - 150 examples)
 """
+# (100 - 150 examples)
 
+    
 response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
