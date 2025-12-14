@@ -12,11 +12,11 @@ def read_root():
 
 @app.get("/contact-us")
 def read_root():
-    return {"email": "piyushgarg.dev@gmail.com"}
+    return {"email": "xyz@gmail.com"}
 
 @app.post("/chat")
 def chat(
-        message: str = Body(..., description="The Message")
+        message: str = Body(..., description="The Message") # ... = “required parameter”
 ):
     response = client.chat(model="gemma:2b", messages=[
         { "role": "user", "content":message  }
