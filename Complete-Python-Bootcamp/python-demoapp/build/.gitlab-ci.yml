@@ -1,0 +1,43 @@
+variables:
+    IMAGE_NAME: skynetix/demo-app
+    IMAGE_TAG: python-app-1.0
+
+stages:
+  - test
+  - build
+  - deploy
+
+run_tests:
+  stage: test
+  image: python:3.9-slim-buster
+  before_script:
+    - apt-get update && apt-get install make
+  script:
+    - make test
+
+# Add DOCKER_USER & DOCKER_PASSWORD in settings -> CICD -> Variables
+build_image: 
+  stage: build
+  image: docker:20.10.16 # Docker-In-Docker
+  services:
+    - docker:20.10.16-dind # Docker daemon
+  variables:
+     DOCKER_TLS_CERTDIR: "/certs"
+  before_script: 
+    - docker login - u $DOCKER_USER -p $DOCKER_PASSWORD
+  script: 
+    - docker build . -t $IMAGE_NAME:$IMAGE_TAG # Dockerfile is in the same dir 
+    - docker build . -t $IMAGE_NAME:$IMAGE_TAG
+
+# go to setting -> CICD -> Variables[File] and add SSH_PRIVATE_KEY
+deploy:
+  stage: deploy
+  before_script:
+    - chmod 400 $SSH_PRIVATE_KEY # change mode to secure
+  script:
+    - ssh -o StrictHostKeyChecking=no -i $SSH_PRIVATE_KEY root@<IP Address of Server> "
+      docker login - u $DOCKER_USER -p $DOCKER_PASSWORD && 
+      docker ps -aq | xargs docker stop | xargs docker rm && 
+      docker run -d -p 5000:5000 $IMAGE_NAME:$IMAGE_TAG
+    "
+
