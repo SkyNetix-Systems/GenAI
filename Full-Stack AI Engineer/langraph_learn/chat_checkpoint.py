@@ -1,60 +1,48 @@
 from dotenv import load_dotenv
 from typing_extensions import TypedDict
-from typing import Annotated
+from typing import Annotated, List
+
 from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, START, END
-from langchain.chat_models import init_chat_model
 from langgraph.checkpoint.mongodb import MongoDBSaver
+
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
 
 load_dotenv()
 
-llm = init_chat_model(
+llm = ChatOpenAI(
     model="gpt-4.1-mini",
-    model_provider="openai"
+    temperature=0
 )
 
 class State(TypedDict):
-    messages: Annotated[list, add_messages]
+    messages: Annotated[List, add_messages]
 
 def chatbot(state: State):
-    response = llm.invoke(state.get("messages"))
-    return { "messages": [response] }
-
+    response = llm.invoke(state["messages"])
+    return {"messages": [response]}
 
 graph_builder = StateGraph(State)
-
 graph_builder.add_node("chatbot", chatbot)
-
 graph_builder.add_edge(START, "chatbot")
 graph_builder.add_edge("chatbot", END)
 
-graph = graph_builder.compile()
+# 🔥 NO AUTH URI (LOCAL DEV)
+DB_URI = "mongodb://localhost:27017"
 
-def compile_graph_with_checkpointer(checkpointer):
-    return graph_builder.compile(checkpointer=checkpointer)
-
-DB_URI = "mongodb://admin:admin@localhost:27017"
 with MongoDBSaver.from_conn_string(DB_URI) as checkpointer:
-    graph_with_checkpointer = compile_graph_with_checkpointer(checkpointer=checkpointer)
+    graph = graph_builder.compile(checkpointer=checkpointer)
 
     config = {
-            "configurable": {
-                "thread_id": "piyush" # user_id
-            }
+        "configurable": {
+            "thread_id": "piyush" # user id
         }
+    }
 
-
-    for chunk in graph_with_checkpointer.stream(
-        State({"messages": ["what is my name?"]}),
-        config,
+    for chunk in graph.stream(
+        {"messages": [HumanMessage(content="What is my name?")]},
+        config=config,
         stream_mode="values"
-        ):
-            chunk["messages"][-1].pretty_print()
-    
-
-# (START) -> chatbot -> (END)
-
-# state = { messages: ["Hey there"] }
-# node runs: chatbot(state: ["Hey There"]) -> ["Hi, This is a message from ChatBot Node"]
-
-# Checkpointer (piyush) = Hey, My name is Piyush Garg
+    ):
+        chunk["messages"][-1].pretty_print()
